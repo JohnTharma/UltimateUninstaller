@@ -1,45 +1,37 @@
 @echo off
-setlocal
+setlocal ENABLEDELAYEDEXPANSION
 
-:: Define software name, new version, and silent parameters
-set "softwareName=YourSoftwareName"
-set "newVersion=1.2.0"
-set "silentParameters=/silent /norestart" 
+set SoftwareName=Cisco Jabber
+set NewVersion=12.9.4.55061
+set x86GUID=HKLM\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall
+set x64GUID=HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall
+set Installer=\\dc\sources\jre-8u172-windows-i586.exe REMOVEOUTOFDATEJRES=1 AUTO_UPDATE=0 EULA=0 NOSTARTMENU=1 SPONSORS=0 WEB_ANALYTICS=0 WEB_JAVA=1 WEB_JAVA_SECURITY_LEVEL=H /s
 
-:: Check if the software exists in the 32-bit registry
-reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\%softwareName%" > nul 2>&1
-if %errorlevel% equ 0 (
-    call :CheckVersion "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\%softwareName%"
-) else (
-    :: If not found in 32-bit registry, check 64-bit registry
-    reg query "HKLM\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\%softwareName%" > nul 2>&1
-    if %errorlevel% equ 0 (
-        call :CheckVersion "HKLM\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\%softwareName%"
+REM It's faster to first locate the software GUID, then search its Name, Version & UninstallString
+for /f "delims=" %%P in ('reg query "%x86GUID%" /s /f "%SoftwareName%" 2^>nul ^| findstr "HKEY_LOCAL_MACHINE"') do (
+  echo %%P
+  for /f "tokens=2*" %%A in ('reg query "%%P" /v "DisplayVersion" 2^>nul ^|findstr "DisplayVersion"') do (
+    set InstalledVersion=%%B
+    if "!InstalledVersion!" LSS "%NewVersion%" (
+      echo Found older version !InstalledVersion!, initiating uninstall...
+      for /f "tokens=2*" %%C in ('reg query "%%P" /v "UninstallString" 2^>nul ^|findstr "UninstallString"') do (
+        echo %%D | findstr /c:"MsiExec.exe"  >nul && (
+          set MsiStr=%%D
+          set MsiStr=!MsiStr:/I=/X!
+          echo !MsiStr! /quiet /norestart
+          !MsiStr! /quiet /norestart
+          rem %Installer%
+        ) || (
+          echo None MsiExec Uninstall String %%D
+          rem "%%D" /S
+        )
+      )
     ) else (
-        echo Software not found.
-        exit /b 1
+      echo Found newer version !InstalledVersion!, skipping...
+	  pause
     )
+  )
 )
 
-exit /b 0
 
-:CheckVersion
-:: Retrieve the display version from the registry
-for /f "tokens=2,*" %%A in ('reg query "%~1" /v DisplayVersion 2^>nul') do (
-    set "displayVersion=%%B"
-)
-
-:: Check if the display version is greater than or equal to the new version
-if "%displayVersion%" geq "%newVersion%" (
-    echo Newer version (%displayVersion%) is already installed.
-    exit /b 0
-) else (
-    echo Old version (%displayVersion%) detected. Uninstalling...
-    for /f "tokens=2,*" %%A in ('reg query "%~1" /v UninstallString ^| find /i "UninstallString"') do (
-        set "uninstallString=%%B"
-    )
-    echo Uninstalling %softwareName%...
-    start /wait "" %uninstallString% %silentParameters%
-    echo Installation complete.
-)
-exit /b 0
+endlocal
