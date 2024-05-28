@@ -1,1 +1,71 @@
-A working utf 8 batch script with software name,newversion, and silent parameters set. The script should first look if software name matches displayname in 32bit registry, else check 64bit registry. If exist in either, should check if the display version is greater than or equal to newversion. If not, echo old version installed and proceed to uninstall with the uninstallstring found in the registry and add the silent parametersset, else echo newer version is detected and exit script.
+@echo off
+setlocal enabledelayedexpansion
+
+rem Specify the name of the software you want to retrieve information for
+set "SOFTWARE_NAME=VLC"
+
+rem Specify the location of the ref.txt file
+set "OUTPUT_FILE=ref.txt"
+
+rem Query the 32-bit registry for the specified software
+for /f "tokens=*" %%a in ('reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" /s /f "%SOFTWARE_NAME%" /reg:32 2^>nul') do (
+    set "KEY=%%a"
+    for /f "tokens=1,*" %%b in ('reg query "!KEY!" /v DisplayName 2^>nul') do (
+        if "%%b"=="DisplayName" (
+            set "DISPLAY_NAME=%%c"
+            set "SOFTWARE_PATH=!KEY!"
+            set "ARCH=32-bit"
+            goto :next
+        )
+    )
+)
+
+rem Query the 64-bit registry for the specified software
+for /f "tokens=*" %%a in ('reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" /s /f "%SOFTWARE_NAME%" /reg:64 2^>nul') do (
+    set "KEY=%%a"
+    for /f "tokens=1,*" %%b in ('reg query "!KEY!" /v DisplayName 2^>nul') do (
+        if "%%b"=="DisplayName" (
+            set "DISPLAY_NAME=%%c"
+            set "SOFTWARE_PATH=!KEY!"
+            set "ARCH=64-bit"
+            goto :next
+        )
+    )
+)
+
+rem If the software is not found, exit
+if not defined SOFTWARE_PATH (
+    echo Software "%SOFTWARE_NAME%" not found.
+    exit /b
+)
+
+:next
+rem Retrieve additional information
+for /f "tokens=1,*" %%b in ('reg query "!SOFTWARE_PATH!" /v DisplayVersion 2^>nul') do (
+    if "%%b"=="DisplayVersion" set "VERSION=%%c"
+)
+for /f "tokens=1,*" %%b in ('reg query "!SOFTWARE_PATH!" /v InstallSource 2^>nul') do (
+    if "%%b"=="InstallSource" set "INSTALL_SOURCE=%%c"
+)
+for /f "tokens=1,*" %%b in ('reg query "!SOFTWARE_PATH!" /v InstallLocation 2^>nul') do (
+    if "%%b"=="InstallLocation" set "INSTALL_PATH=%%c"
+)
+for /f "tokens=1,*" %%b in ('reg query "!SOFTWARE_PATH!" /v Publisher 2^>nul') do (
+    if "%%b"=="Publisher" set "PUBLISHER=%%c"
+)
+for /f "tokens=1,*" %%b in ('reg query "!SOFTWARE_PATH!" /v UninstallString 2^>nul') do (
+    if "%%b"=="UninstallString" set "UNINSTALL_STRING=%%c"
+)
+
+rem Export the gathered information to the output file
+echo Software Name: !DISPLAY_NAME! >> "%OUTPUT_FILE%"
+echo Registry Path: !SOFTWARE_PATH! >> "%OUTPUT_FILE%"
+echo Architecture: !ARCH! >> "%OUTPUT_FILE%"
+echo Version: !VERSION! >> "%OUTPUT_FILE%"
+echo Install Source: !INSTALL_SOURCE! >> "%OUTPUT_FILE%"
+echo Install Path: !INSTALL_PATH! >> "%OUTPUT_FILE%"
+echo Publisher: !PUBLISHER! >> "%OUTPUT_FILE%"
+echo Uninstallation String: !UNINSTALL_STRING! >> "%OUTPUT_FILE%"
+echo. >> "%OUTPUT_FILE%"
+
+echo Information exported to %OUTPUT_FILE%
