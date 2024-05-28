@@ -1,37 +1,51 @@
+::It launches on 64bit CMD,Extracts software software GUID, and Then use the GUID to search the name and version
+@ECHO OFF
+
+IF NOT "%PROCESSOR_ARCHITEW6432%"=="AMD64" GOTO native
+ECHO "Re-launching Script in Native Command Processor..." 
+%SystemRoot%\Sysnative\cmd.exe /c %0 %*
+
+EXIT
+
+:native
 @echo off
+pushd %~dp0
 setlocal ENABLEDELAYEDEXPANSION
 
-set SoftwareName=Cisco Jabber
-set NewVersion=12.9.4.55061
+
+set SoftwareName=HeidiSQL 11.3.0.6295
+set NewVersion=11.4
 set x86GUID=HKLM\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall
 set x64GUID=HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall
-set Installer=\\dc\sources\jre-8u172-windows-i586.exe REMOVEOUTOFDATEJRES=1 AUTO_UPDATE=0 EULA=0 NOSTARTMENU=1 SPONSORS=0 WEB_ANALYTICS=0 WEB_JAVA=1 WEB_JAVA_SECURITY_LEVEL=H /s
+set x86HKCU=HKCU\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall
+set x64HKCU=HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall
+set UninstallParameters=/SILENT
 
 REM It's faster to first locate the software GUID, then search its Name, Version & UninstallString
-for /f "delims=" %%P in ('reg query "%x86GUID%" /s /f "%SoftwareName%" 2^>nul ^| findstr "HKEY_LOCAL_MACHINE"') do (
-  echo %%P
-  for /f "tokens=2*" %%A in ('reg query "%%P" /v "DisplayVersion" 2^>nul ^|findstr "DisplayVersion"') do (
-    set InstalledVersion=%%B
-    if "!InstalledVersion!" LSS "%NewVersion%" (
-      echo Found older version !InstalledVersion!, initiating uninstall...
-      for /f "tokens=2*" %%C in ('reg query "%%P" /v "UninstallString" 2^>nul ^|findstr "UninstallString"') do (
-        echo %%D | findstr /c:"MsiExec.exe"  >nul && (
-          set MsiStr=%%D
-          set MsiStr=!MsiStr:/I=/X!
-          echo !MsiStr! /quiet /norestart
-          !MsiStr! /quiet /norestart
-          rem %Installer%
-        ) || (
-          echo None MsiExec Uninstall String %%D
-          rem "%%D" /S
+for %%G in ("%x86GUID%" "%x64GUID%") do (
+    for /f "delims=" %%P in ('reg query "%%~G" /s /f "%SoftwareName%" 2^>nul ^| findstr "HKEY_LOCAL_MACHINE"') do (
+        echo %%P
+        for /f "tokens=2*" %%A in ('reg query "%%P" /v "DisplayVersion" 2^>nul ^|findstr "DisplayVersion"') do (
+            set InstalledVersion=%%B
+            if "!InstalledVersion!" LSS "%NewVersion%" (
+                echo Found older version !InstalledVersion!, initiating uninstall...
+                for /f "tokens=2*" %%C in ('reg query "%%P" /v "UninstallString" 2^>nul ^|findstr "UninstallString"') do (
+                    echo %%D | findstr /c:"MsiExec.exe"  >nul && (
+                        set MsiStr=%%D
+                        set MsiStr=!MsiStr:/I=/X!
+                        echo !MsiStr! %UninstallParameters%
+                        !MsiStr! %UninstallParameters%
+                    ) || (
+                        echo None MsiExec Uninstall String %%D
+                        %%D %UninstallParameters%
+                    )
+                )
+            ) else (
+                echo Found newer version !InstalledVersion!, skipping...
+                pause
+            )
         )
-      )
-    ) else (
-      echo Found newer version !InstalledVersion!, skipping...
-	  pause
     )
-  )
 )
-
 
 endlocal
