@@ -2,13 +2,13 @@
 setlocal enabledelayedexpansion
 
 rem Specify the name of the software you want to retrieve information for
-set "SOFTWARE_NAME=VLC"
+set "SOFTWARE_NAME=AgileMark"
 
 rem Specify the location of the ref.txt file
 set "OUTPUT_FILE=ref.txt"
 
 rem Query the 32-bit registry for the specified software
-for /f "tokens=*" %%a in ('reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" /s /f "%SOFTWARE_NAME%" /reg:32 2^>nul') do (
+for /f "tokens=*" %%a in ('reg query "HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall" /s /f "%SOFTWARE_NAME%" /reg:32 2^>nul') do (
     set "KEY=%%a"
     for /f "tokens=1,*" %%b in ('reg query "!KEY!" /v DisplayName 2^>nul') do (
         if "%%b"=="DisplayName" (
@@ -58,14 +58,26 @@ for /f "tokens=1,*" %%b in ('reg query "!SOFTWARE_PATH!" /v UninstallString 2^>n
 )
 
 rem Export the gathered information to the output file
-echo Software Name: !DISPLAY_NAME! >> "%OUTPUT_FILE%"
-echo Registry Path: !SOFTWARE_PATH! >> "%OUTPUT_FILE%"
-echo Architecture: !ARCH! >> "%OUTPUT_FILE%"
-echo Version: !VERSION! >> "%OUTPUT_FILE%"
-echo Install Source: !INSTALL_SOURCE! >> "%OUTPUT_FILE%"
-echo Install Path: !INSTALL_PATH! >> "%OUTPUT_FILE%"
-echo Publisher: !PUBLISHER! >> "%OUTPUT_FILE%"
-echo Uninstallation String: !UNINSTALL_STRING! >> "%OUTPUT_FILE%"
+echo Registry Path: >> "%OUTPUT_FILE%"
+echo !SOFTWARE_PATH! >> "%OUTPUT_FILE%"
+echo. >> "%OUTPUT_FILE%"
+echo Software Name: >> "%OUTPUT_FILE%"
+echo !DISPLAY_NAME! >> "%OUTPUT_FILE%"
+echo. >> "%OUTPUT_FILE%"
+echo Version: >> "%OUTPUT_FILE%"
+echo !VERSION! >> "%OUTPUT_FILE%"
+echo. >> "%OUTPUT_FILE%"
+echo Install Source: >> "%OUTPUT_FILE%"
+echo !INSTALL_SOURCE! >> "%OUTPUT_FILE%"
+echo. >> "%OUTPUT_FILE%"
+echo Install Path: >> "%OUTPUT_FILE%"
+echo !INSTALL_PATH! >> "%OUTPUT_FILE%"
+echo. >> "%OUTPUT_FILE%"
+echo Publisher: >> "%OUTPUT_FILE%"
+echo !PUBLISHER! >> "%OUTPUT_FILE%"
+echo. >> "%OUTPUT_FILE%"
+echo Uninstallation String: >> "%OUTPUT_FILE%"
+echo !UNINSTALL_STRING! >> "%OUTPUT_FILE%"
 echo. >> "%OUTPUT_FILE%"
 
 echo Information exported to %OUTPUT_FILE%
