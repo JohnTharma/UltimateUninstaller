@@ -1,0 +1,31 @@
+Save the following file as .ps1 and do the following for the .bat file "PowerShell.exe -command "Start-Process Powershell -Verb RunAs -ArgumentList '-ExecutionPolicy Bypass -File .\Reset Software Centre Services.ps1'" -WindowStyle normal"
+
+$ccmProgram = Get-WmiObject -Namespace ROOT\CCM\ClientSDK -Class CCM_Program | Where-Object {$_.EvaluationState –eq 14}
+If ($ccmProgram -ne $null)
+{
+	$ccmExecutionRequestEx = Get-WmiObject -Namespace ROOT\CCM\SoftMgmtAgent –Class CCM_ExecutionRequestEx | Where-Object {$_.RunningState -eq “NotifyExecution” -and $_.AdvertID -gt “” -and $_.ContentID -eq $ccmProgram.PackageID}
+	If ($ccmExecutionRequestEx -ne $null)
+	{
+		$ccmExecutionRequestEx | Remove-WmiObject
+		Start-Process sc.exe -ArgumentList “config smstsmgr depend= winmgmt/ccmexec” -Wait
+		Restart-Service -Name CcmExec -Force
+	}
+}
+Else 
+{
+    
+	Start-Process sc.exe -ArgumentList “config smstsmgr depend= winmgmt/ccmexec” -Wait
+	Restart-Service -Name CcmExec -Force
+    pause
+}
+
+Save this for the BuiltTeamVersion
+
+
+::Please do this bat file before you open software centre for first time.
+sc config smstsmgr depend= winmgmt/ccmexec
+sc config "smstsmgr" start= auto
+sc config "CCMExec" start= auto
+sc config "winmgmt" start= auto
+reg add HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\CCM\CcmExec /v ProvisioningMode /t REG_SZ /d false /f
+CMD echo 'If still does not install, clear CCMCache folder,then proceed to run this script.'
