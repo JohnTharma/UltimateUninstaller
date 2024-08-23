@@ -11,40 +11,48 @@ function GetHWDetails {
 
     Process {
     #main work
+		$uniqueUserNames = ""
+		$currentLogonNames = ""
+		$lastLogonNames = ""
+		$lAT = ""
 		foreach ($device in $devices) {
 			$deviceAffinity = Get-CMUserDeviceAffinity -DeviceName $device | select UniqueUserName, ResourceName, CreationTime
-			$deviceStatus = Get-ADComputer -filter "Name -eq '$device'" -Properties * | select name, description, enabled, DistinguishedName, Created, LastLogonDate
+			$deviceStatus = Get-ADComputer -filter "Name -like '$device*'" -Properties * | select name, description, enabled, DistinguishedName, Created, LastLogonDate
 			$deviceCMDetails = Get-CMDevice -Name $device | select Username, LastActiveTime, CurrentLogonUser, LastLogonUser
 			if ($deviceStatus -eq $null) {
-				$deviceStatus =Get-ADComputer -Server "reg3" -filter "Name -eq '$device'" -Properties * | select name, description, enabled, DistinguishedName, Created, LastLogonDate
+				$deviceStatus =Get-ADComputer -Server "reg3" -filter "Name -like '$device*'" -Properties * | select name, description, enabled, DistinguishedName, Created, LastLogonDate
 			}
 			if ($deviceStatus -eq $null) {
 				$deviceObj = [PSCustomObject]@{
-					"Device Name" = $device
-					"Description" = "Not found"
-					"Current Logon User" = "Not found"
-					"Last Logon User" = "Not found"
-					"Last Active Time" = "Not found"
-					"Distinguished Name" = "Not found"
-					"Creation Time" = "Not found"
-					"Last Logon Date" = "Not found"
-					"Device Affinity User Names" = "Not found" 
-					"Device Affinity Creation Time" = "Not found"
-					"Enabled" = "Not found"
+					DeviceName = $device
+					Description = "Not found"
+					CurrentLogonUser = "Not found"
+					LastLogonUser = "Not found"
+					LastActiveTime = "Not found"
+					DistinguishedName = "Not found"
+					CreationTime = "Not found"
+					LastLogonDate = "Not found"
+					DeviceAffinityUserNames = "Not found" 
+					DeviceAffinityCreationTime = "Not found"
+					Enabled = "Not found"
 				}
 			} else {
+				$lastLogonNames = $(foreach($ll in $deviceCMDetails.LastLogonUser){if ($ll -eq $null) {"null"} else {$ll}})-join', '
+				$currentLogonNames = $(foreach($cc in $deviceCMDetails.CurrentLogonUser){if ($cc -eq $null) {"null"} else {$cc}})-join', '
+				$uniqueUserNames = $(foreach($uu in $deviceAffinity.UniqueUserName){if ($uu -eq $null) {"null"} else {$uu}})-join', '
+				$lAT = $(foreach($at in $deviceCMDetails.LastActiveTime){if ($at -eq $null) {"null"} else {$at}})-join', '
 				$deviceObj = [PSCustomObject]@{
-					"Device Name" = $device
-					"Description" = $deviceStatus.description
-					"Current Logon User" = $deviceCMDetails.CurrentLogonUser
-					"Last Logon User" = $deviceCMDetails.LastLogonUser
-					"Last Active Time" = $deviceCMDetails.LastActiveTime
-					"Distinguished Name" = $deviceStatus.DistinguishedName
-					"Creation Time" = $deviceStatus.Created
-					"Last Logon Date" = $deviceStatus.LastLogonDate
-					"Device Affinity User Names" = $deviceAffinity.UniqueUserName 
-					"Device Affinity Creation Time" = $deviceAffinity.CreationTime
-					"Enabled" = $deviceStatus.enabled
+					DeviceName = $device
+					Description = $deviceStatus.description
+					CurrentLogonUser = $currentLogonNames
+					LastLogonUser = $lastLogonNames
+					LastActiveTime = $lAT
+					DistinguishedName = $deviceStatus.DistinguishedName
+					CreationTime = $deviceStatus.Created
+					LastLogonDate = $deviceStatus.LastLogonDate
+					DeviceAffinityUserNames = $uniqueUserNames 
+					DeviceAffinityCreationTime = $deviceAffinity.CreationTime
+					Enabled = $deviceStatus.enabled
 				}
 			}
 			$deviceDetails += @($deviceObj)
@@ -54,7 +62,8 @@ function GetHWDetails {
     End {
     #cleanup
 		if ($csv -eq "Y") {
-			$ts = Get-Date -UFormat "%Y%m%d_%H%m"
+			$ts = (Get-Date -UFormat "%Y%m%d_") + (Get-Date -Format "%H%m") +  "_" + (Get-Random -Minimum 1000 -Maximum 9999)
+			Write-Host $ts
 			$deviceDetails | Export-CSV -Path "C:\Temp\Hostnames_$ts.csv"
 			Write-Host "==========================================================="
 			Write-Host "CSV file output : C:\Temp\Hostnames__$ts.csv"
@@ -78,35 +87,34 @@ function GetUserDetails {
 
     Process {
     #main work
+		$hW = ""
 		foreach ($user in $users) {
-			$userADInfo =  Get-ADUser -filter "SamAccountName -eq '$user'" -Properties * | select CanonicalName, emailAddress, Title, Department, LastLogonDate, Enabled
+			$userADInfo =  Get-ADUser -filter "SamAccountName -eq '$user'" -Properties * | select CanonicalName, emailAddress, Title, LastLogonDate, Enabled
 			$userHWInfo = Get-CMUserDeviceAffinity -Username "reg1\$user" | select ResourceName
 			if ($userADInfo -eq $null) {
-				$userADInfo = Get-ADUser -Server "reg3" -filter "SamAccountName -eq '$user'" -Properties * | select CanonicalName, emailAddress, Title, Department, LastLogonDate, Enabled
+				$userADInfo = Get-ADUser -Server "reg3" -filter "SamAccountName -eq '$user'" -Properties * | select CanonicalName, emailAddress, Title, LastLogonDate
 				$userHWInfo = Get-CMUserDeviceAffinity -Username "reg3\$user" | select ResourceName
 			}
 			if ($userADInfo -eq $null) {
 				$userObj = [PSCustomObject]@{
-					"User Name" = $user
-					"Server" = "Not found"
-					"Email Address" = "Not found"
-					"Title" = "Not found"
-					"Department" = "Not found"
-					"Last Logon Date" = "Not found"
-					"Enabled" = "Not found"
-					"Hostname Detail" = "Not found"
+					userName = $user
+					server = "Not found"
+					userEmailAddress = "Not found"
+					userTitle = "Not found"
+					userLastLogonDate = "Not found"
+					userEnabled = "Not found"
+					userHWDetail = "Not found"
 				}
 			} else {
+				$hW = $(foreach($hh in $userHWInfo.ResourceName){if ($hh -eq $null) {"null"} else {$hh}})-join', '
 				$userObj = [PSCustomObject]@{
-					"User Name" = $user
-					"Server" = $userADInfo.CanonicalName.substring(0,4)
-					"Email Address" = $userADInfo.emailAddress
-					"Title" = $userADInfo.Title
-					"Department" = $userADInfo.Department
-					"Last Logon Date" = $userADInfo.LastLogonDate
-					"Enabled" = $userADInfo.enabled
-					"Hostname Detail" = $userHWInfo.ResourceName
-
+					userName = $user
+					server = $userADInfo.CanonicalName.substring(0,4)
+					userEmaiAddress = $userADInfo.emailAddress
+					userTitle = $userADInfo.Title
+					userLastLogonDate = $userADInfo.LastLogonDate
+					userEnabled = $userADInfo.enabled
+					userHWDetail = $hW
 				}
 			}
 			$userDetails += @($userObj)
@@ -116,7 +124,7 @@ function GetUserDetails {
     End {
     #cleanup
 		if ($csv -eq "Y") {
-			$ts = Get-Date -UFormat "%Y%m%d_%H%m"
+			$ts = (Get-Date -UFormat "%Y%m%d_") + (Get-Date -Format "%H%m") +  "_" + (Get-Random -Minimum 1000 -Maximum 9999)
 			$userDetails | Export-CSV -Path "C:\Temp\Users_$ts.csv"
 			Write-Host "==========================================================="
 			Write-Host "CSV file output : C:\Temp\Users_$ts.csv"
@@ -143,21 +151,21 @@ function GetGroupDetails {
     #main work
 		foreach ($group in $groups) {
 			# $membersArray = @()
-			$members =  Get-ADGroup -filter "Name -eq '$group'" | Get-ADGroupMember | select name, SamAccountName				
+			$members =  Get-ADGroup -filter "Name -like '$group*'" | Get-ADGroupMember | select name, SamAccountName				
 			if ($members -eq $null) {
-				$members =  Get-ADGroup -Server "reg3" -filter "Name -eq '$group'" | Get-ADGroupMember | select name, SamAccountName				
+				$members =  Get-ADGroup -Server "reg3" -filter "Name -like '$group*'" | Get-ADGroupMember | select name, SamAccountName				
 			}
 			if ($members -eq $null) {
 				$groupObj = [PSCustomObject]@{
-					"Group Name" = $group
-					"Member Detail" = "Not found"
+					groupName = $group
+					groupMemberDetail = "Not found"
 				}
 				$groupDetails += @($groupObj)
 			} else {
 				foreach ($member in $members.SamAccountName) {
 					$groupObj = [PSCustomObject]@{
-						"Group Name" = $group
-						"Member Detail" = $member
+						groupName = $group
+						groupMemberDetail = $member
 					}
 					$groupDetails += @($groupObj)
 				}
@@ -168,7 +176,7 @@ function GetGroupDetails {
     End {
     #cleanup
 		if ($csv -eq "Y") {
-			$ts = Get-Date -UFormat "%Y%m%d_%H%m"
+			$ts = (Get-Date -UFormat "%Y%m%d_") + (Get-Date -Format "%H%m") +  "_" + (Get-Random -Minimum 1000 -Maximum 9999)
 			$groupDetails | Export-CSV -Path "C:\Temp\Groups_$ts.csv"
 			Write-Host "==========================================================="
 			Write-Host "CSV file output : C:\Temp\Groups_$ts.csv"
@@ -193,8 +201,8 @@ Set-Location "$($SiteCode):\" @initParams
 # end of config
 
 do {
-	# $choices  = '&User Info','&Hardware Info'
-	$title    = '==== Information Retrieval Script (version 0.1c) ===='
+	$choices  = '&User Info','&Hardware Info'
+	$title    = 'Information Retrieval'
 	$question = 'What information do you want to retrieve?'
 	$Choices = @(
 		[System.Management.Automation.Host.ChoiceDescription]::new("&User Info", "Get information for user (1BankId)")
@@ -202,15 +210,13 @@ do {
 		[System.Management.Automation.Host.ChoiceDescription]::new("&Group Info", "Get information for group (groupname)")
 		[System.Management.Automation.Host.ChoiceDescription]::new("&Exit", "Exit Powershell")
 	)
-	$decision = $Host.UI.PromptForChoice($title, $question, $Choices, 1)
+	$decision = $Host.UI.PromptForChoice($title, $question, $choices, 1)
 
 	switch ($decision)
 	{
 		0 {
 			$userArray = Read-Host "Enter 1BankIDs (e.g.) : id1,id2..."
-			$outputCSV = Read-Host "Output to CSV? N/Y"
-			cls			
-			Write-Host("======= Processing User(s) Details =======")
+			$outputCSV = Read-Host "Output to CSV? N/Y" 
 			$splitUser = $userArray -split ','
 			GetUserDetails @($splitUser) $outputCSV
 			Pause
@@ -219,8 +225,6 @@ do {
 		1 {
 			$hwArray = Read-Host "Enter Hostnames (e.g.) : hostname1,hostname2..."
 			$outputCSV = Read-Host "Output to CSV? N/Y" 
-			cls			
-			Write-Host("======= Processing Hostname(s) Details =======")
 			$splitHw = $hwArray -split ','
 			GetHWDetails @($splitHw) $outputCSV
 			Pause
@@ -228,9 +232,7 @@ do {
 		}
 		2 {
 			$groupArray = Read-Host "Enter Group Name (e.g.) : 01REG1_Test1, 01REG1_Test2..."
-			$outputCSV = Read-Host "Output to CSV? N/Y"
-			cls			
-			Write-Host("======= Processing Group(s) Details =======")
+			$outputCSV = Read-Host "Output to CSV? N/Y" 
 			$splitGrp = $groupArray -split ','
 			GetGroupDetails @($splitGrp) $outputCSV
 			Pause
@@ -242,3 +244,4 @@ do {
 		Default {}
 	}	
 } until ($loop -eq "N") #neverending loop, the third option should exit the powershell
+
