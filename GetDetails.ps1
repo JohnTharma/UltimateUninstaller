@@ -89,10 +89,10 @@ function GetUserDetails {
     #main work
 		$hW = ""
 		foreach ($user in $users) {
-			$userADInfo =  Get-ADUser -filter "SamAccountName -eq '$user'" -Properties * | select CanonicalName, emailAddress, Title, LastLogonDate, Enabled
+			$userADInfo =  Get-ADUser -filter "SamAccountName -eq '$user'" -Properties * | select CanonicalName, emailAddress, Title, LastLogonDate, Department,Enabled
 			$userHWInfo = Get-CMUserDeviceAffinity -Username "reg1\$user" | select ResourceName
 			if ($userADInfo -eq $null) {
-				$userADInfo = Get-ADUser -Server "reg3" -filter "SamAccountName -eq '$user'" -Properties * | select CanonicalName, emailAddress, Title, LastLogonDate
+				$userADInfo = Get-ADUser -Server "reg3" -filter "SamAccountName -eq '$user'" -Properties * | select DistinguishedName,CanonicalName, emailAddress, Title, LastLogonDate, Department, Enabled
 				$userHWInfo = Get-CMUserDeviceAffinity -Username "reg3\$user" | select ResourceName
 			}
 			if ($userADInfo -eq $null) {
@@ -101,6 +101,7 @@ function GetUserDetails {
 					server = "Not found"
 					userEmailAddress = "Not found"
 					userTitle = "Not found"
+					userDepartment = "Not found"
 					userLastLogonDate = "Not found"
 					userEnabled = "Not found"
 					userHWDetail = "Not found"
@@ -112,6 +113,7 @@ function GetUserDetails {
 					server = $userADInfo.CanonicalName.substring(0,4)
 					userEmaiAddress = $userADInfo.emailAddress
 					userTitle = $userADInfo.Title
+					userDepartment = $userADInfo.Department
 					userLastLogonDate = $userADInfo.LastLogonDate
 					userEnabled = $userADInfo.enabled
 					userHWDetail = $hW
@@ -244,4 +246,3 @@ do {
 		Default {}
 	}	
 } until ($loop -eq "N") #neverending loop, the third option should exit the powershell
-
