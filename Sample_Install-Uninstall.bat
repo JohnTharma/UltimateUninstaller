@@ -22,7 +22,7 @@ set AppLog=C:\Temp\Logs\%AppName%
 if not exist "%AppLog%" mkdir "%AppLog%"
 
 REM Close any conflicting applications
-taskkill /F /IM sampleapp.exd
+taskkill /F /IM sampleapp.exe
 
 REM Install application silently(exe)
 start /wait "sampleapp.exe" /allusers /verysilent /norestart -i /S
