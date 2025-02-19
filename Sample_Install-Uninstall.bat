@@ -87,6 +87,9 @@ echo Uninstalled "%AppName%" >> "%AppLog%\%AppName% - Uninstall.log"
 REM Cleanup Registry
 reg delete "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\%AppName%\" /f
 
+timeout /t 30
+
+exit /b
 
 
 
