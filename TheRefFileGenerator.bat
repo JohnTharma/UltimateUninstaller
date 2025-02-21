@@ -1,5 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
+chcp 65001
 
 rem Specify the name of the software you want to retrieve information for
 set "SOFTWARE_NAME=trellix"
